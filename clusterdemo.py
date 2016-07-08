@@ -3,14 +3,11 @@
 import sys, getopt
 
 from cluster import MininetCluster, SwitchBinPlacer
-from cluster import RemoteLink, RemoteSSHLink, RemoteGRELink
+from cluster import RemoteSSHLink, RemoteGRELink
 from clustercli import ClusterCLI as CLI
 
-from mininet.net import Mininet
-from mininet.topolib import TreeTopo, TreeNet
-from mininet.topo import Topo
-from mininet.util import custom, quietRun
-from mininet.log import setLogLevel, info
+from mininet.topolib import TreeTopo
+from mininet.log import setLogLevel
 
 servers = ['localhost', 'mn1.local', 'mn2.local']
 
@@ -21,12 +18,15 @@ def main(argv):
     plot = False
 
     try:
-        opts, args = getopt.getopt(argv, "pl:", ["link="])
+        opts, args = getopt.getopt(argv, "hpt:", ["tunnel="])
     except getopt.GetoptError:
-        print './clustertest.py [-l | --link] <link>'
+        print './clustertest.py -t <tunnel> -p'
         sys.exit(2)
     for opt, arg in opts:
-        if opt in ("-l", "--link"):
+        if opt == '-h':
+            print './clustertest.py -t <tunnel(ssh|gre)> -p'
+            sys.exit()
+        if opt in ("-t", "--tunnel"):
             if arg in ['ssh', 'SSH']:
                 Link = RemoteSSHLink
             elif arg in ['gre', 'GRE']:
