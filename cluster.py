@@ -87,7 +87,7 @@ from mininet.clean import addCleanupCallback
 from signal import signal, SIGINT, SIG_IGN
 from subprocess import Popen, PIPE, STDOUT
 import os
-from random import randrange
+from random import randrange, randint
 import sys
 import re
 from itertools import groupby
@@ -287,7 +287,7 @@ class RemoteMixin( object ):
 
     def addIntf( self, *args, **kwargs ):
         "Override: use RemoteLink.moveIntf"
-        kwargs.update( moveIntfFn=RemoteLink.moveIntf )
+        #kwargs.update( moveIntfFn=RemoteLink.moveIntf )
         return super( RemoteMixin, self).addIntf( *args, **kwargs )
 
 
@@ -400,20 +400,27 @@ class RemoteLink( Link ):
             printError: if true, print error"""
         intf = str( intf )
         cmd = 'ip link set %s netns %s' % ( intf, node.pid )
-        node.rcmd( cmd )
+        result = node.rcmd( cmd )
+        if result:
+            raise Exception('error executing command %s' % cmd)
+        '''
         links = node.cmd( 'ip link show' )
         if not ' %s:' % intf in links:
             if printError:
                 error( '*** Error: RemoteLink.moveIntf: ' + intf +
                        ' not successfully moved to ' + node.name + '\n' )
             return False
+        '''
         return True
 
     def makeTunnel( self, node1, node2, intfname1, intfname2,
                     addr1=None, addr2=None ):
         "Make a tunnel across switches on different servers"
         # We should never try to create a tunnel to ourselves!
-        assert node1.server != 'localhost' or node2.server != 'localhost'
+        #assert node1.server != 'localhost' or node2.server != 'localhost'
+        assert node1.server != node2.server
+        print '\nmake SSH tunnel ' + node1.serverIP + ':' + \
+              intfname1 + ' == ' + node2.serverIP + ':' + intfname2
         # And we can't ssh into this server remotely as 'localhost',
         # so try again swappping node1 and node2
         if node2.server == 'localhost':
@@ -472,6 +479,75 @@ class RemoteLink( Link ):
             status = "OK"
         result = "%s %s" % ( Link.status( self ), status )
         return result
+
+class RemoteSSHLink( RemoteLink ):
+    def __init__(self, node1, node2, **kwargs):
+        RemoteLink.__init__( self, node1, node2, **kwargs )
+
+
+class RemoteGRELink( RemoteLink ):
+    def __init__(self, node1, node2, **kwargs):
+        RemoteLink.__init__( self, node1, node2, **kwargs )
+
+    def stop( self ):
+        "Stop this link"
+        if self.tunnel:
+            self.intf1.delete()
+            self.intf2.delete()
+        else:
+            Link.stop( self )
+        self.tunnel = None
+
+    def makeIntfPair( self, intfname1, intfname2, addr1=None, addr2=None,
+                      node1=None, node2=None, deleteIntfs=True   ):
+        """Create pair of interfaces
+            intfname1: name of interface 1
+            intfname2: name of interface 2
+            (override this method [and possibly delete()]
+            to change link type)"""
+        node1 = self.node1 if node1 is None else node1
+        node2 = self.node2 if node2 is None else node2
+        server1 = getattr( node1, 'server', 'localhost' )
+        server2 = getattr( node2, 'server', 'localhost' )
+        if server1 == server2:
+            # Link within same server
+            Link.makeIntfPair( intfname1, intfname2, addr1, addr2,
+                               node1, node2, deleteIntfs=deleteIntfs )
+            node1.cmd('ip link set dev %s mtu 1450' % intfname1)
+            node2.cmd('ip link set dev %s mtu 1450' % intfname2)
+        else:
+            # Otherwise, make a tunnel
+            self.makeTunnel( node1, node2, intfname1, intfname2, addr1, addr2 )
+            self.tunnel = 1
+
+    def makeTunnel(self, node1, node2, intfname1, intfname2,
+                       addr1=None, addr2=None):
+        "Make a tunnel across switches on different servers"
+        # We should never try to create a tunnel to ourselves!
+        #assert node1.server != 'localhost' or node2.server != 'localhost'
+        assert node1.server != node2.server
+        print '\nmake GRE tunnel ' + node1.serverIP + ':' + \
+              intfname1 + ' == ' + node2.serverIP + ':' + intfname2
+        if '127.0.0.1' in [node1.serverIP, node2.serverIP]:
+            raise Exception('cannot make GRE tunnel from localhost')
+        tun1 = 'local ' + node1.serverIP + ' remote ' + node2.serverIP
+        tun2 = 'local ' + node2.serverIP + ' remote ' + node1.serverIP
+        key = randint(1, 99999)
+        for (node, intfname, addr, tun) in [(node1, intfname1, addr1, tun1),
+                                            (node2, intfname2, addr2, tun2)]:
+            node.rcmd('ip link delete ' + intfname)
+            result = node.rcmd('ip link add name ' + intfname + ' type gretap '
+                               + tun + ' ttl 64 key ' + str(key))
+            if result:
+                raise Exception('error creating gretap on %s: %s'
+                                % (node, result))
+            if addr:
+                node.rcmd('ip link det %s address %s' % (intfname, addr))
+
+            node.rcmd('ip link set dev %s up' % intfname)
+            node.rcmd('ip link set dev %s mtu 1450' % intfname)
+            if not self.moveIntf(intfname, node):
+                raise Exception('interface move failed on node %s' % node)
 
 
 # Some simple placement algorithms for MininetCluster
@@ -673,6 +749,7 @@ class MininetCluster( Mininet ):
         if not self.serverIP:
             self.serverIP = { server: RemoteMixin.findServerIP( server )
                               for server in self.servers }
+        self.serverIP['localhost'] = params.pop('localIP', '127.0.0.1')
         self.user = params.pop( 'user', findUser() )
         if params.pop( 'precheck' ):
             self.precheck()
@@ -777,9 +854,9 @@ class MininetCluster( Mininet ):
 
 def testNsTunnels():
     "Test tunnels between nodes in namespaces"
-    net = Mininet( host=RemoteHost, link=RemoteLink )
-    h1 = net.addHost( 'h1' )
-    h2 = net.addHost( 'h2', server='ubuntu2' )
+    net = Mininet( host=RemoteHost, link=RemoteGRELink )
+    h1 = net.addHost( 'h1')
+    h2 = net.addHost( 'h2', server='mn1.local' )
     net.addLink( h1, h2 )
     net.start()
     net.pingAll()
@@ -790,7 +867,7 @@ def testNsTunnels():
 # This shows how node options may be used to manage
 # cluster placement using the net.add*() API
 
-def testRemoteNet( remote='ubuntu2' ):
+def testRemoteNet( remote='mn1.local' ):
     "Test remote Node classes"
     print '*** Remote Node Test'
     net = Mininet( host=RemoteHost, switch=RemoteOVSSwitch,
@@ -828,7 +905,7 @@ def testRemoteNet( remote='ubuntu2' ):
 
 remoteHosts = [ 'h2' ]
 remoteSwitches = [ 's2' ]
-remoteServer = 'ubuntu2'
+remoteServer = 'mn1.local'
 
 def HostPlacer( name, *args, **params ):
     "Custom Host() constructor which places hosts on servers"
@@ -867,7 +944,7 @@ def testRemoteTopo():
 
 def testRemoteSwitches():
     "Test with local hosts and remote switches"
-    servers = [ 'localhost', 'ubuntu2']
+    servers = [ 'localhost', 'mn1.local']
     topo = TreeTopo( depth=4, fanout=2 )
     net = MininetCluster( topo=topo, servers=servers,
                           placement=RoundRobinPlacer )
@@ -886,7 +963,7 @@ def testRemoteSwitches():
 
 def testMininetCluster():
     "Test MininetCluster()"
-    servers = [ 'localhost', 'ubuntu2' ]
+    servers = [ 'localhost', 'mn1.local' ]
     topo = TreeTopo( depth=3, fanout=3 )
     net = MininetCluster( topo=topo, servers=servers,
                           placement=SwitchBinPlacer )
@@ -896,7 +973,7 @@ def testMininetCluster():
 
 def signalTest():
     "Make sure hosts are robust to signals"
-    h = RemoteHost( 'h0', server='ubuntu1' )
+    h = RemoteHost( 'h0', server='mn1.local' )
     h.shell.send_signal( SIGINT )
     h.shell.poll()
     if h.shell.returncode is None:
@@ -907,8 +984,9 @@ def signalTest():
 
 if __name__ == '__main__':
     setLogLevel( 'info' )
-    # testRemoteTopo()
-    # testRemoteNet()
-    # testMininetCluster()
-    # testRemoteSwitches()
-    signalTest()
+    testNsTunnels()
+    #testRemoteTopo()
+    #testRemoteNet()
+    #testMininetCluster()
+    #testRemoteSwitches()
+    #signalTest()
