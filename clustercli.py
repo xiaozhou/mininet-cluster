@@ -24,7 +24,7 @@ class ClusterCLI( CLI ):
         colors = colors[ 0 : slen ]
         return colors
 
-    def do_plot( self, _line ):
+    def do_plot( self ):
         "Plot topology colored by node placement"
         # Import networkx if needed
         global nx, plt
@@ -76,7 +76,7 @@ class ClusterCLI( CLI ):
         plt.title( 'Node Placement', fontweight='bold' )
         plt.show()
 
-    def do_status( self, _line ):
+    def do_status( self ):
         "Report on node shell status"
         nodes = self.mn.hosts + self.mn.switches
         for node in nodes:
@@ -90,7 +90,7 @@ class ClusterCLI( CLI ):
         else:
             output( 'All nodes are still running.\n' )
 
-    def do_placement( self, _line ):
+    def do_placement( self ):
         "Describe node placement"
         mn = self.mn
         nodes = mn.hosts + mn.switches + mn.controllers
