@@ -530,6 +530,8 @@ class RemoteGRELink( RemoteLink ):
             return self.makeTunnel( node2, node1, intfname2, intfname1,
                                     addr2, addr1 )
         IP1, IP2 = node1.serverIP, node2.serverIP
+        # need to setup GRE tunnel with the IP of the interface to the remote
+        # node, NOT '127.0.0.1' for localhost
         if node1.server == 'localhost':
             output = quietRun('ip route get %s' % node2.serverIP)
             IP1 = output.split(' src ')[1].split()[0]
