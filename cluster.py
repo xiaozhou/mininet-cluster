@@ -987,8 +987,8 @@ def signalTest():
 if __name__ == '__main__':
     setLogLevel( 'info' )
     testNsTunnels()
-    #testRemoteTopo()
-    #testRemoteNet()
-    #testMininetCluster()
-    #testRemoteSwitches()
-    #signalTest()
+    testRemoteTopo()
+    testRemoteNet()
+    testMininetCluster()
+    testRemoteSwitches()
+    signalTest()
