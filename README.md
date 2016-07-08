@@ -1,13 +1,13 @@
 ## Mininet Cluster Edition
-This repository contains a library and test scripts of Mininet cluster
-edition. It modifies the implementation of Mininet cluster edition in the
-[official Mininet repository]. The original prototype connects mininet nodes
-on different servers with SSH tunnels, which are secure but relatively slow. We
-add a new remote link type that uses GRE tunnel. It has much less overhead and
-higher throughput than SSH.
+This repository contains a library and demo script of Mininet cluster edition.
+It modifies the implementation of Mininet cluster edition in the [official
+Mininet repository]. The original prototype connects mininet nodes on different
+servers with SSH tunnels, which are secure but relatively slow. We add a new
+remote link type that uses GRE tunnel. It has much less overhead and higher
+throughput than SSH.
 
 [Mininet] needs to be installed in all servers before using this library or
-running the test scripts. Please read the [official Mininet wiki page on cluster
+running the demo. Please read the [official Mininet wiki page on cluster
 edition prototype] for more details on cluster setup and design overview.
 
 

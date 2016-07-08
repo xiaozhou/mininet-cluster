@@ -12,11 +12,12 @@ from mininet.topo import Topo
 from mininet.util import custom, quietRun
 from mininet.log import setLogLevel, info
 
+servers = ['localhost', 'mn1.local', 'mn2.local']
+localIP = '10.211.55.12'
+
 def main(argv):
 
     Link = RemoteGRELink
-    servers = ['localhost', 'mn1.local', 'mn2.local']
-    localIP = '10.211.55.12'
     topo = TreeTopo(depth=2, fanout=3)
 
     try:
