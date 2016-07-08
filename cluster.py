@@ -94,6 +94,7 @@ from itertools import groupby
 from operator import attrgetter
 from distutils.version import StrictVersion
 
+GRE_KEY = 0
 
 def findUser():
     "Try to return logged-in (usually non-root) user"
@@ -536,12 +537,13 @@ class RemoteGRELink( RemoteLink ):
                                 ' == ' + IP2 + ':' + intfname2
         tun1 = 'local ' + IP1 + ' remote ' + IP2
         tun2 = 'local ' + IP2 + ' remote ' + IP1
-        key = randint(1, 99999)
+        global GRE_KEY
+        GRE_KEY += 1
         for (node, intfname, addr, tun) in [(node1, intfname1, addr1, tun1),
                                             (node2, intfname2, addr2, tun2)]:
             node.rcmd('ip link delete ' + intfname)
             result = node.rcmd('ip link add name ' + intfname + ' type gretap '
-                               + tun + ' ttl 64 key ' + str(key))
+                               + tun + ' ttl 64 key ' + str(GRE_KEY))
             if result:
                 raise Exception('error creating gretap on %s: %s'
                                 % (node, result))
