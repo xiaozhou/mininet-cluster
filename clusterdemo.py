@@ -13,15 +13,15 @@ from mininet.util import custom, quietRun
 from mininet.log import setLogLevel, info
 
 servers = ['localhost', 'mn1.local', 'mn2.local']
-localIP = '10.211.55.12'
 
 def main(argv):
 
     Link = RemoteGRELink
     topo = TreeTopo(depth=2, fanout=3)
+    plot = False
 
     try:
-        opts, args = getopt.getopt(argv, "l:", ["link="])
+        opts, args = getopt.getopt(argv, "pl:", ["link="])
     except getopt.GetoptError:
         print './clustertest.py [-l | --link] <link>'
         sys.exit(2)
@@ -31,12 +31,17 @@ def main(argv):
                 Link = RemoteSSHLink
             elif arg in ['gre', 'GRE']:
                 Link = RemoteGRELink
+        if opt == '-p':
+            plot = True
 
-    net = MininetCluster(topo=topo, servers=servers, localIP=localIP,
-                         link=Link, placement=SwitchBinPlacer)
+    net = MininetCluster(topo=topo, servers=servers, link=Link,
+                         placement=SwitchBinPlacer)
     net.start()
     net.pingAll()
-    CLI(net).do_plot()
+    if plot:
+        CLI(net).do_plot()
+    else:
+        CLI(net)
     net.stop()
 
 if __name__ == '__main__':

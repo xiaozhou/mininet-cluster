@@ -80,7 +80,7 @@ from mininet.net import Mininet
 from mininet.topo import LinearTopo
 from mininet.topolib import TreeTopo
 from mininet.util import quietRun, errRun
-from mininet.examples.clustercli import CLI
+
 from mininet.log import setLogLevel, debug, info, error
 from mininet.clean import addCleanupCallback
 
@@ -417,15 +417,14 @@ class RemoteLink( Link ):
                     addr1=None, addr2=None ):
         "Make a tunnel across switches on different servers"
         # We should never try to create a tunnel to ourselves!
-        #assert node1.server != 'localhost' or node2.server != 'localhost'
         assert node1.server != node2.server
-        print '\nmake SSH tunnel ' + node1.serverIP + ':' + \
-              intfname1 + ' == ' + node2.serverIP + ':' + intfname2
         # And we can't ssh into this server remotely as 'localhost',
         # so try again swappping node1 and node2
         if node2.server == 'localhost':
             return self.makeTunnel( node2, node1, intfname2, intfname1,
                                     addr2, addr1 )
+        print '\n*** Make SSH tunnel ' + node1.serverIP + ':' + \
+              intfname1 + ' == ' + node2.serverIP + ':' + intfname2
         # 1. Create tap interfaces
         for node in node1, node2:
             # For now we are hard-wiring tap9, which we will rename
@@ -480,6 +479,7 @@ class RemoteLink( Link ):
         result = "%s %s" % ( Link.status( self ), status )
         return result
 
+
 class RemoteSSHLink( RemoteLink ):
     def __init__(self, node1, node2, **kwargs):
         RemoteLink.__init__( self, node1, node2, **kwargs )
@@ -524,14 +524,18 @@ class RemoteGRELink( RemoteLink ):
                        addr1=None, addr2=None):
         "Make a tunnel across switches on different servers"
         # We should never try to create a tunnel to ourselves!
-        #assert node1.server != 'localhost' or node2.server != 'localhost'
         assert node1.server != node2.server
-        print '\nmake GRE tunnel ' + node1.serverIP + ':' + \
-              intfname1 + ' == ' + node2.serverIP + ':' + intfname2
-        if '127.0.0.1' in [node1.serverIP, node2.serverIP]:
-            raise Exception('cannot make GRE tunnel from localhost')
-        tun1 = 'local ' + node1.serverIP + ' remote ' + node2.serverIP
-        tun2 = 'local ' + node2.serverIP + ' remote ' + node1.serverIP
+        if node2.server == 'localhost':
+            return self.makeTunnel( node2, node1, intfname2, intfname1,
+                                    addr2, addr1 )
+        IP1, IP2 = node1.serverIP, node2.serverIP
+        if node1.server == 'localhost':
+            output = quietRun('ip route get %s' % node2.serverIP)
+            IP1 = output.split(' src ')[1].split()[0]
+        print '\n*** Make GRE tunnel ' + IP1 + ':' + intfname1 + \
+                                ' == ' + IP2 + ':' + intfname2
+        tun1 = 'local ' + IP1 + ' remote ' + IP2
+        tun2 = 'local ' + IP2 + ' remote ' + IP1
         key = randint(1, 99999)
         for (node, intfname, addr, tun) in [(node1, intfname1, addr1, tun1),
                                             (node2, intfname2, addr2, tun2)]:
@@ -749,7 +753,6 @@ class MininetCluster( Mininet ):
         if not self.serverIP:
             self.serverIP = { server: RemoteMixin.findServerIP( server )
                               for server in self.servers }
-        self.serverIP['localhost'] = params.pop('localIP', '127.0.0.1')
         self.user = params.pop( 'user', findUser() )
         if params.pop( 'precheck' ):
             self.precheck()
@@ -892,7 +895,6 @@ def testRemoteNet( remote='mn1.local' ):
     for node in c0, h1, h2, s1, s2:
         print 'Node', node, 'is running on', node.cmd( 'hostname' ).strip()
     net.pingAll()
-    CLI( net )
     net.stop()
 
 
