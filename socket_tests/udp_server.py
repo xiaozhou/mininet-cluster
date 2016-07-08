@@ -23,7 +23,7 @@ except socket.error , msg:
 print 'Socket bind complete'
  
 while 1:
-    d = s.recvfrom(1024)
+    d = s.recvfrom(8192)
     data = d[0]
     addr = d[1]
      

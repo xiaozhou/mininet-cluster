@@ -9,7 +9,6 @@ except socket.error, msg:
     print 'Failed to create socket. Error code: ' + str(msg[0]) + ' , Error message : ' + msg[1]
     sys.exit();
 
-#remote_ip = '10.211.55.12'
 remote_ip = '10.0.0.2'
 port = 5000
 
@@ -30,7 +29,7 @@ while(1):
         message = raw_input('Enter message to send : ')
     try:
         s.sendall(message)
-        reply = s.recv(4096)
+        reply = s.recv(8192)
         print 'Server reply: ' + reply
     except socket.error, msg:
         print 'Error Code : ' + str(msg[0]) + ' Message ' + msg[1]

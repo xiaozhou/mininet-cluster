@@ -17,7 +17,7 @@ while(1) :
      
     try :
         s.sendto(msg, (host, port))
-        d = s.recvfrom(1024)
+        d = s.recvfrom(8192)
         reply = d[0]
         addr = d[1]
          

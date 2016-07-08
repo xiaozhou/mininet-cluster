@@ -10,8 +10,7 @@ except socket.error, msg:
     print 'Failed to create socket. Error code: ' + str(msg[0]) + ' , Error message : ' + msg[1]
     sys.exit();
 
-remote_ip = '10.211.55.12'
-#remote_ip = '10.0.0.1'
+remote_ip = '10.0.0.1'
 port = 5000
 
 s.connect((remote_ip , port))
