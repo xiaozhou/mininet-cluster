@@ -6,10 +6,10 @@ servers with SSH tunnels, which are secure but relatively slow. We add a new
 remote link type that uses GRE tunnel. It introduces less overhead thus can
 achieve higher throughput than SSH.
 
-[Mininet] in not included in this repository and needs to be separately
+[Mininet] is not included in this repository and needs to be separately
 installed in all servers before using this library or running the demo scripts.
 Please read the [official Mininet wiki page on cluster edition prototype] for
-more details on cluster setup and design overview.
+more details on the design overview and cluster setup.
 
 
 [Mininet]: <https://github.com/mininet/mininet/>
