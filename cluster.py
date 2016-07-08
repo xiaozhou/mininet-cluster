@@ -87,7 +87,7 @@ from mininet.clean import addCleanupCallback
 from signal import signal, SIGINT, SIG_IGN
 from subprocess import Popen, PIPE, STDOUT
 import os
-from random import randrange, randint
+from random import randrange
 import sys
 import re
 from itertools import groupby
@@ -514,6 +514,9 @@ class RemoteGRELink( RemoteLink ):
             # Link within same server
             Link.makeIntfPair( intfname1, intfname2, addr1, addr2,
                                node1, node2, deleteIntfs=deleteIntfs )
+            # Need to reduce the MTU of all emulated hosts to 1450 for GRE
+            # tunneling, otherwise packets larger than 1400 bytes cannot be
+            # successfully transmitted through the turnnel.
             node1.cmd('ip link set dev %s mtu 1450' % intfname1)
             node2.cmd('ip link set dev %s mtu 1450' % intfname2)
         else:
@@ -530,8 +533,8 @@ class RemoteGRELink( RemoteLink ):
             return self.makeTunnel( node2, node1, intfname2, intfname1,
                                     addr2, addr1 )
         IP1, IP2 = node1.serverIP, node2.serverIP
-        # need to setup GRE tunnel with the IP of the interface to the remote
-        # node, NOT '127.0.0.1' for localhost
+        # GRE tunnel needs to be set up with the IP of the local interface
+        # that connects the remote node, NOT '127.0.0.1' of localhost
         if node1.server == 'localhost':
             output = quietRun('ip route get %s' % node2.serverIP)
             IP1 = output.split(' src ')[1].split()[0]
