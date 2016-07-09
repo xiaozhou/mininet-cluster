@@ -424,8 +424,8 @@ class RemoteLink( Link ):
         if node2.server == 'localhost':
             return self.makeTunnel( node2, node1, intfname2, intfname1,
                                     addr2, addr1 )
-        print '\n*** Make SSH tunnel ' + node1.serverIP + ':' + \
-              intfname1 + ' == ' + node2.serverIP + ':' + intfname2
+        print '\n*** Make SSH tunnel ' + node1.server + ':' + intfname1 + \
+                                ' == ' + node2.server + ':' + intfname2
         # 1. Create tap interfaces
         for node in node1, node2:
             # For now we are hard-wiring tap9, which we will rename
@@ -538,8 +538,8 @@ class RemoteGRELink( RemoteLink ):
         if node1.server == 'localhost':
             output = quietRun('ip route get %s' % node2.serverIP)
             IP1 = output.split(' src ')[1].split()[0]
-        print '\n*** Make GRE tunnel ' + IP1 + ':' + intfname1 + \
-                                ' == ' + IP2 + ':' + intfname2
+        print '\n*** Make GRE tunnel ' + node1.server + ':' + intfname1 + \
+                                ' == ' + node2.server + ':' + intfname2
         tun1 = 'local ' + IP1 + ' remote ' + IP2
         tun2 = 'local ' + IP2 + ' remote ' + IP1
         global GRE_KEY
@@ -862,9 +862,9 @@ class MininetCluster( Mininet ):
         Mininet.buildFromTopo( self, *args, **kwargs )
 
 
-def testNsTunnels():
+def testNsTunnels( link=RemoteGRELink ):
     "Test tunnels between nodes in namespaces"
-    net = Mininet( host=RemoteHost, link=RemoteGRELink )
+    net = Mininet( host=RemoteHost, link=link )
     h1 = net.addHost( 'h1')
     h2 = net.addHost( 'h2', server='mn1.local' )
     net.addLink( h1, h2 )
@@ -877,11 +877,10 @@ def testNsTunnels():
 # This shows how node options may be used to manage
 # cluster placement using the net.add*() API
 
-def testRemoteNet( remote='mn1.local' ):
+def testRemoteNet( remote='mn1.local', link=RemoteGRELink ):
     "Test remote Node classes"
     print '*** Remote Node Test'
-    net = Mininet( host=RemoteHost, switch=RemoteOVSSwitch,
-                   link=RemoteLink )
+    net = Mininet( host=RemoteHost, switch=RemoteOVSSwitch, link=link )
     c0 = net.addController( 'c0' )
     # Make sure controller knows its non-loopback address
     Intf( 'eth0', node=c0 ).updateIP()
@@ -937,11 +936,11 @@ def ClusterController( *args, **kwargs):
     Intf( 'eth0', node=controller ).updateIP()
     return controller
 
-def testRemoteTopo():
+def testRemoteTopo( link=RemoteGRELink ):
     "Test remote Node classes using Mininet()/Topo() API"
     topo = LinearTopo( 2 )
     net = Mininet( topo=topo, host=HostPlacer, switch=SwitchPlacer,
-                   link=RemoteLink, controller=ClusterController )
+                   link=link, controller=ClusterController )
     net.start()
     net.pingAll()
     net.stop()
@@ -951,11 +950,11 @@ def testRemoteTopo():
 # do random switch placement rather than completely random
 # host placement.
 
-def testRemoteSwitches():
+def testRemoteSwitches( link=RemoteGRELink ):
     "Test with local hosts and remote switches"
     servers = [ 'localhost', 'mn1.local']
     topo = TreeTopo( depth=4, fanout=2 )
-    net = MininetCluster( topo=topo, servers=servers,
+    net = MininetCluster( topo=topo, servers=servers, link=link,
                           placement=RoundRobinPlacer )
     net.start()
     net.pingAll()
@@ -970,11 +969,11 @@ def testRemoteSwitches():
 # functions, for maximum ease of use. MininetCluster() also
 # pre-flights and multiplexes server connections.
 
-def testMininetCluster():
+def testMininetCluster( link=RemoteGRELink ):
     "Test MininetCluster()"
     servers = [ 'localhost', 'mn1.local' ]
     topo = TreeTopo( depth=3, fanout=3 )
-    net = MininetCluster( topo=topo, servers=servers,
+    net = MininetCluster( topo=topo, servers=servers, link=link,
                           placement=SwitchBinPlacer )
     net.start()
     net.pingAll()
@@ -993,9 +992,10 @@ def signalTest():
 
 if __name__ == '__main__':
     setLogLevel( 'info' )
-    testNsTunnels()
-    testRemoteTopo()
-    testRemoteNet()
-    testMininetCluster()
-    testRemoteSwitches()
+    link = RemoteGRELink
+    testNsTunnels(link=link)
+    testRemoteTopo(link=link)
+    testRemoteNet(link=link)
+    testMininetCluster(link=link)
+    testRemoteSwitches(link=link)
     signalTest()
