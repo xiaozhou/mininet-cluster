@@ -403,14 +403,6 @@ class RemoteLink( Link ):
         result = node.rcmd( cmd )
         if result:
             raise Exception('error executing command %s' % cmd)
-        '''
-        links = node.cmd( 'ip link show' )
-        if not ' %s:' % intf in links:
-            if printError:
-                error( '*** Error: RemoteLink.moveIntf: ' + intf +
-                       ' not successfully moved to ' + node.name + '\n' )
-            return False
-        '''
         return True
 
     def makeTunnel( self, node1, node2, intfname1, intfname2,
