@@ -86,9 +86,8 @@ from mininet.clean import addCleanupCallback
 
 from signal import signal, SIGINT, SIG_IGN
 from subprocess import Popen, PIPE, STDOUT
-import os
+import os, sys, getopt
 from random import randrange
-import sys
 import re
 from itertools import groupby
 from operator import attrgetter
@@ -862,11 +861,11 @@ class MininetCluster( Mininet ):
         Mininet.buildFromTopo( self, *args, **kwargs )
 
 
-def testNsTunnels( link=RemoteGRELink ):
+def testNsTunnels( remote='ubuntu1', link=RemoteGRELink ):
     "Test tunnels between nodes in namespaces"
     net = Mininet( host=RemoteHost, link=link )
     h1 = net.addHost( 'h1')
-    h2 = net.addHost( 'h2', server='mn1.local' )
+    h2 = net.addHost( 'h2', server=remote )
     net.addLink( h1, h2 )
     net.start()
     net.pingAll()
@@ -877,7 +876,7 @@ def testNsTunnels( link=RemoteGRELink ):
 # This shows how node options may be used to manage
 # cluster placement using the net.add*() API
 
-def testRemoteNet( remote='mn1.local', link=RemoteGRELink ):
+def testRemoteNet( remote='ubuntu1', link=RemoteGRELink ):
     "Test remote Node classes"
     print '*** Remote Node Test'
     net = Mininet( host=RemoteHost, switch=RemoteOVSSwitch, link=link )
@@ -913,7 +912,7 @@ def testRemoteNet( remote='mn1.local', link=RemoteGRELink ):
 
 remoteHosts = [ 'h2' ]
 remoteSwitches = [ 's2' ]
-remoteServer = 'mn1.local'
+remoteServer = 'ubuntu1'
 
 def HostPlacer( name, *args, **params ):
     "Custom Host() constructor which places hosts on servers"
@@ -950,16 +949,15 @@ def testRemoteTopo( link=RemoteGRELink ):
 # do random switch placement rather than completely random
 # host placement.
 
-def testRemoteSwitches( link=RemoteGRELink ):
+def testRemoteSwitches( remote='ubuntu1', link=RemoteGRELink ):
     "Test with local hosts and remote switches"
-    servers = [ 'localhost', 'mn1.local']
+    servers = [ 'localhost', remote]
     topo = TreeTopo( depth=4, fanout=2 )
     net = MininetCluster( topo=topo, servers=servers, link=link,
                           placement=RoundRobinPlacer )
     net.start()
     net.pingAll()
     net.stop()
-
 
 #
 # For testing and demo purposes it would be nice to draw the
@@ -969,9 +967,9 @@ def testRemoteSwitches( link=RemoteGRELink ):
 # functions, for maximum ease of use. MininetCluster() also
 # pre-flights and multiplexes server connections.
 
-def testMininetCluster( link=RemoteGRELink ):
+def testMininetCluster( remote='ubuntu1', link=RemoteGRELink ):
     "Test MininetCluster()"
-    servers = [ 'localhost', 'mn1.local' ]
+    servers = [ 'localhost', remote ]
     topo = TreeTopo( depth=3, fanout=3 )
     net = MininetCluster( topo=topo, servers=servers, link=link,
                           placement=SwitchBinPlacer )
@@ -979,9 +977,9 @@ def testMininetCluster( link=RemoteGRELink ):
     net.pingAll()
     net.stop()
 
-def signalTest():
+def signalTest( remote='ubuntu1'):
     "Make sure hosts are robust to signals"
-    h = RemoteHost( 'h0', server='mn1.local' )
+    h = RemoteHost( 'h0', server=remote )
     h.shell.send_signal( SIGINT )
     h.shell.poll()
     if h.shell.returncode is None:
@@ -990,12 +988,25 @@ def signalTest():
         print 'FAILURE:', h, 'exited with code', h.shell.returncode
     h.stop()
 
+
 if __name__ == '__main__':
     setLogLevel( 'info' )
-    link = RemoteGRELink
-    testNsTunnels(link=link)
-    testRemoteTopo(link=link)
-    testRemoteNet(link=link)
-    testMininetCluster(link=link)
-    testRemoteSwitches(link=link)
-    signalTest()
+    remoteServer = 'ubuntu1'
+    remoteLink = RemoteGRELink
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "r:t:")
+    except getopt.GetoptError:
+        print './cluster.py -r <remote> -t <tunnel>'
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-r':
+            remoteServer = arg
+        if opt == '-t' and arg == 'ssh':
+            remoteLink = RemoteSSHLink
+
+    testRemoteTopo(link=remoteLink)
+    testNsTunnels( remote=remoteServer, link=remoteLink )
+    testRemoteNet( remote=remoteServer, link=remoteLink)
+    testMininetCluster( remote=remoteServer, link=remoteLink)
+    testRemoteSwitches( remote=remoteServer, link=remoteLink)
+    signalTest( remote=remoteServer )
