@@ -93,7 +93,6 @@ from itertools import groupby
 from operator import attrgetter
 from distutils.version import StrictVersion
 
-GRE_KEY = 0
 
 def findUser():
     "Try to return logged-in (usually non-root) user"
@@ -477,6 +476,7 @@ class RemoteSSHLink( RemoteLink ):
         RemoteLink.__init__( self, node1, node2, **kwargs )
 
 
+GRE_KEY = 0
 class RemoteGRELink( RemoteLink ):
     def __init__(self, node1, node2, **kwargs):
         RemoteLink.__init__( self, node1, node2, **kwargs )
@@ -507,7 +507,7 @@ class RemoteGRELink( RemoteLink ):
                                node1, node2, deleteIntfs=deleteIntfs )
             # Need to reduce the MTU of all emulated hosts to 1450 for GRE
             # tunneling, otherwise packets larger than 1400 bytes cannot be
-            # successfully transmitted through the turnnel.
+            # successfully transmitted through the tunnel.
             node1.cmd('ip link set dev %s mtu 1450' % intfname1)
             node2.cmd('ip link set dev %s mtu 1450' % intfname2)
         else:
